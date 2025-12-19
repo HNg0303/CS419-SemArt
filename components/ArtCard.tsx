@@ -10,7 +10,7 @@ export function ArtCard({ artwork }: ArtCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
- const imgRef = useRef<HTMLImageElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -27,7 +27,7 @@ export function ArtCard({ artwork }: ArtCardProps) {
     >
       {/* Decorative corner accent */}
       <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-purple-500/20 to-transparent z-10 rounded-bl-3xl"></div>
-      
+
       {/* Image Container */}
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
         {!imageLoaded && (
@@ -39,19 +39,18 @@ export function ArtCard({ artwork }: ArtCardProps) {
           </div>
         )}
         <img
-          ref = {imgRef}
+          ref={imgRef}
           src={artwork.url}
           alt={artwork.title}
-          className={`w-full h-full object-cover transition-all duration-700 ${
-            isHovered ? 'scale-110 rotate-1' : 'scale-100 rotate-0'
-          } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          className={`w-full h-full object-cover transition-all duration-700 ${isHovered ? 'scale-110 rotate-1' : 'scale-100 rotate-0'
+            } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setImageLoaded(true)}
         />
-        
+
         {/* Quick action buttons */}
-        <div className={`absolute top-4 right-4 flex flex-col gap-2 transition-all duration-300 ${
-          isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
-        }`}>
+        <div className={`absolute top-4 right-4 flex flex-col gap-2 transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+          }`}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -65,12 +64,11 @@ export function ArtCard({ artwork }: ArtCardProps) {
             <Share2 className="w-4 h-4 text-slate-600" />
           </button>
         </div>
-        
+
         {/* Overlay on hover */}
         <div
-          className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity duration-500 ${
-            isHovered ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'
+            }`}
         >
           <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -110,11 +108,10 @@ export function ArtCard({ artwork }: ArtCardProps) {
           </button>
         </div>
       </div>
-      
+
       {/* Animated border on hover */}
-      <div className={`absolute inset-0 rounded-2xl border-2 border-purple-500 transition-opacity duration-300 pointer-events-none ${
-        isHovered ? 'opacity-100' : 'opacity-0'
-      }`}></div>
+      <div className={`absolute inset-0 rounded-2xl border-2 border-purple-500 transition-opacity duration-300 pointer-events-none ${isHovered ? 'opacity-100' : 'opacity-0'
+        }`}></div>
     </div>
   );
 }
