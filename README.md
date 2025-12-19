@@ -1,0 +1,2 @@
+Download database from this link: https://drive.google.com/drive/folders/1p8KH5RD7ZncA-TdNCwWL0qAaB-p7qux-?usp=drive_link
+Then put it in back-end folder. Next, run the process_data.py to create semart_merged.csv

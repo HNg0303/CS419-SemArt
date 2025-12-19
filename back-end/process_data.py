@@ -22,6 +22,6 @@ df = df[df.apply(image_exists, axis=1)].reset_index(drop=True)
 df['IMAGE_ID'] = range(len(df))
 
 # Save merged and cleaned CSV
-output_csv = os.path.join(dataset_dir, "semart_merged_cleaned.csv")
+output_csv = os.path.join(dataset_dir, "semart_merged.csv")
 df.to_csv(output_csv, index=False)
 print(f"Saved cleaned dataset to {output_csv}")
