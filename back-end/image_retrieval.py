@@ -74,16 +74,16 @@ def search_similar_images(query_image_path, index, image_paths, k=5):
     distances, idx = index.search(query_emb, k=k)
     return [image_paths[i] for i in idx[0]]
 
-# Perform search
-query_image_path = "00642-portband.jpg"
-embeddings_filename = "all_images_embedding.pkl"
-embeddings, image_paths_clean, problematic_images = load_embeddings(embeddings_filename)
-index = faiss.IndexFlatL2(EMBED_DIM)
-index.add(embeddings)
+# # Perform search
+# query_image_path = "00642-portband.jpg"
+# embeddings_filename = "all_images_embedding.pkl"
+# embeddings, image_paths_clean, problematic_images = load_embeddings(embeddings_filename)
+# index = faiss.IndexFlatL2(EMBED_DIM)
+# index.add(embeddings)
 
-print(f"FAISS index loaded. Total vectors: {index.ntotal}")
-similar_images = search_similar_images(query_image_path, index, image_paths_clean)
+# print(f"FAISS index loaded. Total vectors: {index.ntotal}")
+# similar_images = search_similar_images(query_image_path, index, image_paths_clean)
 
-print("\nTop similar images:")
-for img in similar_images:
-    print(img)
+# print("\nTop similar images:")
+# for img in similar_images:
+#     print(img)
