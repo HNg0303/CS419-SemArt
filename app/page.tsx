@@ -16,7 +16,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
-  const limit = 100;
+  const limit = 20;
   const [totalArtworks, setTotalArtworks] = useState(0);
 
   const fetchImages = async () => {
@@ -84,17 +84,36 @@ export default function App() {
   };
 
   // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        setUploadedImage(imageUrl);
-        simulateImageSearch();
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    setIsSearching(true);
+    setUploadedImage(URL.createObjectURL(file));
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Call backend retrieval API
+    const res = await fetch('http://localhost:8000/api/retrieve/', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+
+    // Map backend results to ArtImage[]
+    const artworks = data.images.map((item: any) => ({
+      id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
+      url: `http://localhost:8000${item.IMAGE_URL}`,
+      title: item.TITLE || '',
+      artist: item.AUTHOR || '',
+      style: item.TYPE || '',
+      tags: [],
+    }));
+
+    setSearchResults(artworks.slice(0, 20)); // Show top 20
+    setIsSearching(false);
   };
 
   // Simulate image-based search
@@ -119,7 +138,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
@@ -130,8 +149,9 @@ export default function App() {
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg sticky top-0 z-10 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Logo and Title Section */}
-          <div className="flex items-center justify-between mb-8">
+          {/* Top Row: Logo/Title, Upload, StatsBar */}
+          <div className="flex items-center justify-between mb-8 gap-6">
+            {/* Logo and Title */}
             <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl blur opacity-75"></div>
@@ -150,15 +170,8 @@ export default function App() {
               </div>
             </div>
 
-            <StatsBar totalArtworks={totalArtworks} resultsCount={searchResults.length} />
-          </div>
-
-          {/* Search Controls */}
-          <div className="space-y-4">
-            <SearchBar onSearch={handleSearch} value={searchQuery} />
-
-            {/* Upload Section */}
-            <div className="flex flex-wrap items-center gap-4">
+            {/* Upload Button */}
+            <div className="flex items-center">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -179,9 +192,8 @@ export default function App() {
                   <span className="text-slate-500 text-xs">Search by similarity</span>
                 </div>
               </label>
-
               {uploadedImage && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg animate-fadeIn">
+                <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg animate-fadeIn ml-4">
                   <div className="relative">
                     <img
                       src={uploadedImage}
@@ -203,11 +215,25 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {/* StatsBar */}
+            <StatsBar totalArtworks={totalArtworks} resultsCount={isSearching ? searchResults.length : totalArtworks} />
+          </div>
+
+          {/* Search Bar below the top row */}
+          <div className="space-y-4">
+            <SearchBar onSearch={handleSearch} value={searchQuery} />
           </div>
         </div>
       </header>
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
+      <main
+        id="scrollableDiv"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+             pt-8 pb-12 relative
+             h-[calc(100vh-160px)] overflow-y-auto"
+        style={{ marginTop: '0px' }}
+      >
         {isSearching ? (
           <div className="flex items-center justify-center py-32">
             {/* ...loading spinner... */}
@@ -220,7 +246,7 @@ export default function App() {
                   Found{' '}
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full">
                     <TrendingUp className="w-4 h-4" />
-                    {searchResults.length}
+                    {isSearching ? searchResults.length : totalArtworks}
                   </span>{' '}
                   artwork{searchResults.length !== 1 ? 's' : ''}
                 </p>
@@ -231,6 +257,7 @@ export default function App() {
               next={fetchMoreImages} // You need to implement this function
               hasMore={hasMore}      // You need to manage this state
               loader={<h4>Loading...</h4>}
+              scrollableTarget="scrollableDiv"
               endMessage={
                 <p style={{ textAlign: 'center' }}>
                   <b>No more images</b>
