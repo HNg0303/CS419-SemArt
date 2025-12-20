@@ -37,7 +37,7 @@ index.add(embeddings)
 
 
 @app.get("/api/images/")
-def get_all_images(offset: int = Query(0), limit: int = Query(20)):
+def get_all_images(offset: int = Query(0), limit: int = Query(100)):
     total = len(df)
     paged_df = df[['IMAGE_ID', 'IMAGE_FILE', 'TITLE', 'AUTHOR', 'TYPE']].iloc[offset:offset+limit]
     paged = paged_df.to_dict(orient="records")

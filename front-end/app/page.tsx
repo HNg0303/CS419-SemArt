@@ -1,11 +1,12 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Upload, X, ImageIcon, Sparkles, TrendingUp } from 'lucide-react';
+import { Search, Upload, X, ImageIcon, Sparkles } from 'lucide-react';
 import type { ArtImage } from '../types/Type';
 import { ArtGallery } from '../components/ArtGallery';
 import { SearchBar } from '../components/SearchBar';
 import { StatsBar } from '../components/StatsBar';
-import InfiniteScroll from 'react-infinite-scroll-component';
+// import InfiniteScroll from 'react-infinite-scroll-component';
+
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,10 +14,11 @@ export default function App() {
   const [artDatabase, setArtDatabase] = useState<ArtImage[]>([]);
   const [searchResults, setSearchResults] = useState<ArtImage[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
-  const limit = 20;
+  const limit = 100;
   const [totalArtworks, setTotalArtworks] = useState(0);
 
   const fetchImages = async () => {
@@ -88,6 +90,7 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsLoading(true);
     setIsSearching(true);
     setUploadedImage(URL.createObjectURL(file));
 
@@ -112,26 +115,15 @@ export default function App() {
       tags: [],
     }));
 
-    setSearchResults(artworks.slice(0, 20)); // Show top 20
-    setIsSearching(false);
+    setSearchResults(artworks.slice(0, limit));
+    setIsLoading(false);
   };
 
-  // Simulate image-based search
-  const simulateImageSearch = () => {
-    setIsSearching(true);
-    setSearchQuery('');
-
-    setTimeout(() => {
-      // Randomly shuffle results to simulate image similarity search
-      const shuffled = [...artDatabase].sort(() => Math.random() - 0.5);
-      setSearchResults(shuffled);
-      setIsSearching(false);
-    }, 800);
-  };
 
   const clearUploadedImage = () => {
     setUploadedImage(null);
     setSearchResults(artDatabase);
+    setIsSearching(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -148,7 +140,7 @@ export default function App() {
 
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg sticky top-0 z-10 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           {/* Top Row: Logo/Title, Upload, StatsBar */}
           <div className="flex items-center justify-between mb-8 gap-6">
             {/* Logo and Title */}
@@ -231,16 +223,16 @@ export default function App() {
         id="scrollableDiv"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
              pt-8 pb-12 relative
-             h-[calc(100vh-160px)] overflow-y-auto"
+             h-[calc(100vh-160px)] overflow-hidden"
         style={{ marginTop: '0px' }}
       >
-        {isSearching ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-32">
             {/* ...loading spinner... */}
           </div>
         ) : (
           <>
-            <div className="mb-8 flex items-center justify-between">
+            {/* <div className="mb-8 flex items-center justify-between">
               <div>
                 <p className="text-slate-600">
                   Found{' '}
@@ -251,21 +243,8 @@ export default function App() {
                   artwork{searchResults.length !== 1 ? 's' : ''}
                 </p>
               </div>
-            </div>
-            <InfiniteScroll
-              dataLength={searchResults.length}
-              next={fetchMoreImages} // You need to implement this function
-              hasMore={hasMore}      // You need to manage this state
-              loader={<h4>Loading...</h4>}
-              scrollableTarget="scrollableDiv"
-              endMessage={
-                <p style={{ textAlign: 'center' }}>
-                  <b>No more images</b>
-                </p>
-              }
-            >
-              <ArtGallery artworks={searchResults} />
-            </InfiniteScroll>
+            </div> */}
+            <ArtGallery artworks={searchResults} fetchMoreImages={fetchMoreImages} hasMore={hasMore} />
           </>
         )}
       </main>
