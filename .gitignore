@@ -15,8 +15,8 @@ node_modules/
 /coverage
 env/
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
 /build
