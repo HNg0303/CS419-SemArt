@@ -1,19 +1,25 @@
-'use client';
+"use client";
 
-import React, { useRef } from 'react';
-import { ArtImage } from '../types/Type';
-import { ArtCard } from './ArtCard';
-import { AutoSizer, Grid } from 'react-virtualized';
-import 'react-virtualized/styles.css';
+import React, { useRef } from "react";
+import { ArtImage } from "../types/Type";
+import { ArtCard } from "./ArtCard";
+import { AutoSizer, Grid } from "react-virtualized";
+import "react-virtualized/styles.css";
 
 const CARD_WIDTH = 280;
 const CARD_HEIGHT = 540;
 const GAP = 24;
 
+interface ArtGalleryProps {
+  artworks: ArtImage[];
+  hasMore: boolean;
+  fetchMoreImages: () => void;
+}
+
 export function ArtGallery({
   artworks,
-  fetchMoreImages,
   hasMore,
+  fetchMoreImages,
 }: ArtGalleryProps) {
   const loadingRef = useRef(false);
 
@@ -22,7 +28,7 @@ export function ArtGallery({
       {({ width, height }) => {
         const columnCount = Math.max(
           1,
-          Math.floor((width + GAP) / (CARD_WIDTH + GAP))
+          Math.floor((width + GAP) / (CARD_WIDTH + GAP)),
         );
         const rowCount = Math.ceil(artworks.length / columnCount);
 
@@ -54,13 +60,7 @@ export function ArtGallery({
               if (index >= artworks.length) return null;
 
               return (
-                <div
-                  key={key}
-                  style={{
-                    ...style,
-                    padding: GAP / 2,
-                  }}
-                >
+                <div key={key} style={{ ...style, padding: GAP / 2 }}>
                   <ArtCard artwork={artworks[index]} />
                 </div>
               );

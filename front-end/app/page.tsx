@@ -1,15 +1,23 @@
-'use client';
-import { useState, useRef, useEffect } from 'react';
-import { Search, Upload, X, ImageIcon, Sparkles } from 'lucide-react';
-import type { ArtImage } from '../types/Type';
-import { ArtGallery } from '../components/ArtGallery';
-import { SearchBar } from '../components/SearchBar';
-import { StatsBar } from '../components/StatsBar';
+"use client";
+import { useState, useRef, useEffect } from "react";
+import { Search, Upload, X, ImageIcon, Sparkles } from "lucide-react";
+import type { ArtImage } from "../types/Type";
+import { ArtGallery } from "../components/ArtGallery";
+import { SearchBar } from "../components/SearchBar";
+import { StatsBar } from "../components/StatsBar";
+import {
+  getImagesPage,
+  retrieveByImage,
+  searchByText,
+  mapBackendImageToArtImage,
+  mapTextResultToArtImage,
+} from "@/lib/api";
+
 // import InfiniteScroll from 'react-infinite-scroll-component';
 
-
 export default function App() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [inputQuery, setInputQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [artDatabase, setArtDatabase] = useState<ArtImage[]>([]);
   const [searchResults, setSearchResults] = useState<ArtImage[]>([]);
@@ -21,72 +29,89 @@ export default function App() {
   const limit = 100;
   const [totalArtworks, setTotalArtworks] = useState(0);
 
+  const submitSearch = (q: string) => {
+    setSubmittedQuery(q.trim().toLowerCase());
+  };
+
   const fetchImages = async () => {
-    const res = await fetch(`http://localhost:8000/api/images/?offset=${offset}&limit=${limit}`);
+    const res = await fetch(
+      `http://localhost:8000/api/images/?offset=${offset}&limit=${limit}`,
+    );
     const data = await res.json();
     const artworks = data.images.map((item: any) => ({
       id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
       url: `http://localhost:8000${item.IMAGE_URL}`,
-      title: item.TITLE || '',
-      artist: item.AUTHOR || '',
-      style: item.TYPE || '',
+      title: item.TITLE || "",
+      artist: item.AUTHOR || "",
+      style: item.TYPE || "",
       tags: [],
     }));
-    setArtDatabase(prev => [...prev, ...artworks]);
-    setOffset(prev => prev + limit);
-    if (artDatabase.length + artworks.length >= data.scrolled) setHasMore(false);
+    setArtDatabase((prev) => [...prev, ...artworks]);
+    setOffset((prev) => prev + limit);
+    if (artDatabase.length + artworks.length >= data.scrolled)
+      setHasMore(false);
   };
 
   const fetchMoreImages = async () => {
-    const res = await fetch(`http://localhost:8000/api/images/?offset=${offset}&limit=${limit}`);
-    const data = await res.json();
-    setTotalArtworks(data.total);
-    const artworks = data.images.map((item: any) => ({
-      id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
-      url: `http://localhost:8000${item.IMAGE_URL}`,
-      title: item.TITLE || '',
-      artist: item.AUTHOR || '',
-      style: item.TYPE || '',
-      tags: [],
-    }));
-    setArtDatabase(prev => [...prev, ...artworks]);
-    setOffset(prev => prev + limit);
-    if (artDatabase.length + artworks.length >= data.scrolled) setHasMore(false);
+    if (submittedQuery.trim() || uploadedImage) return;
+    if (!hasMore) return;
 
-    // Also update searchResults if not searching
-    if (!searchQuery.trim()) {
-      setSearchResults(prev => [...prev, ...artworks]);
-    }
+    const data = await getImagesPage(offset, limit);
+    setTotalArtworks(data.total ?? data.scrolled);
+
+    const artworks = data.images.map(mapBackendImageToArtImage);
+
+    setArtDatabase((prev) => {
+      const next = [...prev, ...artworks];
+      if (next.length >= (data.scrolled ?? data.total)) setHasMore(false);
+      return next;
+    });
+
+    setSearchResults((prev) => [...prev, ...artworks]);
+    setOffset((prev) => prev + limit);
   };
   useEffect(() => {
     fetchMoreImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Simulate search with text
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setIsSearching(true);
+  useEffect(() => {
+    if (uploadedImage) return;
 
-    setTimeout(() => {
-      if (!query.trim()) {
-        setSearchResults(artDatabase);
-      } else {
-        const lowerQuery = query.toLowerCase();
-        const filtered = artDatabase.filter(
-          (art) =>
-            art.title.toLowerCase().includes(lowerQuery) ||
-            art.artist.toLowerCase().includes(lowerQuery) ||
-            art.style.toLowerCase().includes(lowerQuery) ||
-            (art.tags && art.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)))
-        );
-        setSearchResults(filtered.length > 0 ? filtered : artDatabase);
-      }
-      setIsSearching(false);
+    const t = setTimeout(() => {
+      submitSearch(inputQuery);
     }, 500);
-  };
+
+    return () => clearTimeout(t);
+  }, [inputQuery, uploadedImage]);
+
+  useEffect(() => {
+    const q = submittedQuery.trim();
+
+    if (!q) {
+      setIsSearching(false);
+      setSearchResults(artDatabase);
+      return;
+    }
+
+    setIsSearching(true);
+    (async () => {
+      try {
+        const data = await searchByText(q);
+        const mapped = (data.results ?? []).map(mapTextResultToArtImage);
+        setSearchResults(mapped);
+      } catch {
+        setSearchResults(artDatabase);
+      } finally {
+        setIsSearching(false);
+      }
+    })();
+  }, [submittedQuery, artDatabase]);
 
   // Handle image upload
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -96,11 +121,11 @@ export default function App() {
 
     // Prepare form data
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     // Call backend retrieval API
-    const res = await fetch('http://localhost:8000/api/retrieve/', {
-      method: 'POST',
+    const res = await fetch("http://localhost:8000/api/retrieve/", {
+      method: "POST",
       body: formData,
     });
     const data = await res.json();
@@ -109,24 +134,24 @@ export default function App() {
     const artworks = data.images.map((item: any) => ({
       id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
       url: `http://localhost:8000${item.IMAGE_URL}`,
-      title: item.TITLE || '',
-      artist: item.AUTHOR || '',
-      style: item.TYPE || '',
+      title: item.TITLE || "",
+      artist: item.AUTHOR || "",
+      style: item.TYPE || "",
       tags: [],
     }));
 
     setSearchResults(artworks.slice(0, limit));
+    setInputQuery("");
+    setSubmittedQuery("");
     setIsLoading(false);
   };
 
-
   const clearUploadedImage = () => {
     setUploadedImage(null);
+    setInputQuery("");
+    setSubmittedQuery("");
     setSearchResults(artDatabase);
-    setIsSearching(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
@@ -148,7 +173,11 @@ export default function App() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl blur opacity-75"></div>
                 <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 p-4 rounded-2xl shadow-xl">
-                  <img src="icon.png" alt="Logo" className="w-12 h-12 object-contain" />
+                  <img
+                    src="icon.png"
+                    alt="Logo"
+                    className="w-12 h-12 object-contain"
+                  />
                 </div>
               </div>
               <div>
@@ -158,7 +187,9 @@ export default function App() {
                   </h1>
                   <Sparkles className="w-5 h-5 text-purple-500" />
                 </div>
-                <p className="text-slate-600">Discover and explore artworks with AI-powered search</p>
+                <p className="text-slate-600">
+                  Discover and explore artworks with AI-powered search
+                </p>
               </div>
             </div>
 
@@ -181,7 +212,9 @@ export default function App() {
                 </div>
                 <div>
                   <span className="text-slate-900 block">Upload Image</span>
-                  <span className="text-slate-500 text-xs">Search by similarity</span>
+                  <span className="text-slate-500 text-xs">
+                    Search by similarity
+                  </span>
                 </div>
               </label>
               {uploadedImage && (
@@ -195,8 +228,12 @@ export default function App() {
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
                   </div>
                   <div className="flex-1">
-                    <span className="text-white block">Searching with your image</span>
-                    <span className="text-purple-100 text-xs">AI similarity detection active</span>
+                    <span className="text-white block">
+                      Searching with your image
+                    </span>
+                    <span className="text-purple-100 text-xs">
+                      AI similarity detection active
+                    </span>
                   </div>
                   <button
                     onClick={clearUploadedImage}
@@ -209,12 +246,19 @@ export default function App() {
             </div>
 
             {/* StatsBar */}
-            <StatsBar totalArtworks={totalArtworks} resultsCount={isSearching ? searchResults.length : totalArtworks} />
+            <StatsBar
+              totalArtworks={totalArtworks}
+              resultsCount={isSearching ? searchResults.length : totalArtworks}
+            />
           </div>
 
           {/* Search Bar below the top row */}
           <div className="space-y-4">
-            <SearchBar onSearch={handleSearch} value={searchQuery} />
+            <SearchBar
+              value={inputQuery}
+              onChange={setInputQuery}
+              onSubmit={submitSearch} // Enter gọi ngay
+            />
           </div>
         </div>
       </header>
@@ -224,7 +268,7 @@ export default function App() {
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
              pt-8 pb-12 relative
              h-[calc(100vh-160px)] overflow-hidden"
-        style={{ marginTop: '0px' }}
+        style={{ marginTop: "0px" }}
       >
         {isLoading ? (
           <div className="flex items-center justify-center py-32">
@@ -244,7 +288,11 @@ export default function App() {
                 </p>
               </div>
             </div> */}
-            <ArtGallery artworks={searchResults} fetchMoreImages={fetchMoreImages} hasMore={hasMore} />
+            <ArtGallery
+              artworks={searchResults}
+              fetchMoreImages={fetchMoreImages}
+              hasMore={!submittedQuery.trim() && !uploadedImage && hasMore}
+            />
           </>
         )}
       </main>
