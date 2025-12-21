@@ -90,3 +90,72 @@ def build_inverted_index(df):
             inverted_index[term].append((doc_id, tokens.count(term)))
 
     return inverted_index, document_term_count
+
+
+def save_index_to_csv(inverted_index, document_term_count, inverted_path, doccount_path):
+    import json
+    import pandas as pd
+    import os
+
+    inv_rows = []
+    for term, postings in inverted_index.items():
+        inv_rows.append({"term": term, "postings": json.dumps(postings)})
+
+    inv_df = pd.DataFrame(inv_rows)
+    os.makedirs(os.path.dirname(inverted_path) or '.', exist_ok=True)
+    inv_df.to_csv(inverted_path, index=False)
+
+    doc_rows = []
+    for doc_id, count in document_term_count.items():
+        doc_rows.append({"doc_id": doc_id, "term_count": int(count)})
+
+    doc_df = pd.DataFrame(doc_rows)
+    doc_df.to_csv(doccount_path, index=False)
+
+
+def load_inverted_index_from_csv(inverted_path, doccount_path):
+    """Load inverted index and document term counts from CSV files created by save_index_to_csv.
+
+    Returns:
+        (inverted_index, document_term_count)
+    """
+    import json
+    import pandas as pd
+
+    inv_df = pd.read_csv(inverted_path)
+    inverted_index = {}
+    for _, row in inv_df.iterrows():
+        term = row['term']
+        postings = json.loads(row['postings'])
+        inverted_index[term] = [tuple(p) for p in postings]
+
+    doc_df = pd.read_csv(doccount_path)
+    document_term_count = {row['doc_id']: int(row['term_count']) for _, row in doc_df.iterrows()}
+
+    return inverted_index, document_term_count
+
+
+if __name__ == "__main__":
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Precompute inverted index and document term counts to CSV files.")
+    parser.add_argument("--input_csv", default="Dataset/semart_merged.csv", help="Path to the dataset CSV (relative to back-end/)")
+    parser.add_argument("--out_inverted", default="Dataset/inverted_index.csv", help="Output inverted index CSV path")
+    parser.add_argument("--out_doccount", default="Dataset/document_term_count.csv", help="Output document term count CSV path")
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.input_csv):
+        print(f"Input CSV not found: {args.input_csv}")
+        raise SystemExit(1)
+
+    df = pd.read_csv(args.input_csv)
+    if 'COMBINED_TEXT' not in df.columns:
+        df['COMBINED_TEXT'] = df['TITLE'].fillna("") + " " + df['TECHNIQUE'].fillna("") + " " + df['DESCRIPTION'].fillna("")
+
+    inverted_index, document_term_count = build_inverted_index(df)
+
+    os.makedirs(os.path.dirname(args.out_inverted) or '.', exist_ok=True)
+    save_index_to_csv(inverted_index, document_term_count, args.out_inverted, args.out_doccount)
+    print(f"Saved inverted index to {args.out_inverted} and document term counts to {args.out_doccount}")
