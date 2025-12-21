@@ -1,36 +1,37 @@
-import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { Search } from "lucide-react";
+import { useState } from "react";
 
 interface SearchBarProps {
-  onSearch: (query: string) => void;
   value: string;
+  onChange: (query: string) => void; // realtime typing
+  onSubmit: (query: string) => void; // Enter / submit
 }
 
-export function SearchBar({ onSearch, value }: SearchBarProps) {
-  const [inputValue, setInputValue] = useState(value);
+export function SearchBar({ onChange, onSubmit, value }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(inputValue);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    // Real-time search as user types
-    onSearch(newValue);
+    onSubmit(value);
   };
 
   return (
     <form onSubmit={handleSubmit} className="relative group">
-      <div className={`absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${isFocused ? 'opacity-30' : ''}`}></div>
+      <div
+        className={`absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${
+          isFocused ? "opacity-30" : ""
+        }`}
+      />
       <div className="relative">
-        <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${isFocused ? 'text-purple-600' : 'text-slate-400'}`} />
+        <Search
+          className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+            isFocused ? "text-purple-600" : "text-slate-400"
+          }`}
+        />
         <input
           type="text"
-          value={inputValue}
-          onChange={handleChange}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="Search by title, artist, style, or keywords..."
