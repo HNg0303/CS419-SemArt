@@ -10,11 +10,11 @@ const CARD_WIDTH = 280;
 const CARD_HEIGHT = 540;
 const GAP = 24;
 
-interface ArtGalleryProps {
-  artworks: ArtImage[];
-}
-
-export function ArtGallery({ artworks }: ArtGalleryProps) {
+export function ArtGallery({
+  artworks,
+  fetchMoreImages,
+  hasMore,
+}: ArtGalleryProps) {
   const loadingRef = useRef(false);
 
   return (
