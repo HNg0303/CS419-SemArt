@@ -11,6 +11,9 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
+
+venv/
+.venv/
 # testing
 /coverage
 env/
