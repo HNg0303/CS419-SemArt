@@ -7,7 +7,9 @@ import os
 import pandas as pd
 import pickle
 import faiss
+from PIL import Image
 from image_retrieval import search_similar_images, load_embeddings
+from text_retrieval import BM25Retriever, preprocess_text, build_inverted_index
 
 app = FastAPI()
 
@@ -28,6 +30,7 @@ app.mount("/images", StaticFiles(directory=IMAGE_FOLDER), name="images")
 
 # Load CSV once at startup
 df = pd.read_csv(CSV_FILE)
+df['COMBINED_TEXT'] = df['TITLE'] + " " + df['TECHNIQUE'] + " " + df['DESCRIPTION']
 
 # Load embeddings and build FAISS index
 embeddings_filename = "all_images_embedding.pkl"
@@ -37,7 +40,7 @@ index.add(embeddings)
 
 
 @app.get("/api/images/")
-def get_all_images(offset: int = Query(0), limit: int = Query(20)):
+def get_all_images(offset: int = Query(0), limit: int = Query(100)):
     total = len(df)
     paged_df = df[['IMAGE_ID', 'IMAGE_FILE', 'TITLE', 'AUTHOR', 'TYPE']].iloc[offset:offset+limit]
     paged = paged_df.to_dict(orient="records")
@@ -77,3 +80,48 @@ async def retrieve_image(file: UploadFile = File(...)):
 
     os.remove(temp_path)  # Clean up temp file
     return JSONResponse(content={"images": results})
+
+
+@app.get("/api/search/")
+def search_text(query: str = Query(...)):
+    # Build inverted index and document term count
+    inverted_index, document_term_count = build_inverted_index(df)
+
+    # Initialize BM25 retriever and fetch results
+    bm25 = BM25Retriever()
+    avdl = bm25.average_length_of_docs(df['COMBINED_TEXT'])  # Average document length in the corpus
+    results = bm25.process_query(1, query, inverted_index, avdl, document_term_count)
+
+    # Allow client to request number of top results
+    # (default to 10, clamp in frontend as needed)
+    top_k = 10
+
+    top_items = list(results.items())[:top_k]
+
+    # Build JSON-friendly response with metadata and score
+    response_results = []
+    for rank, (doc_id, score) in enumerate(top_items, start=1):
+        matches = df[df['IMAGE_FILE'] == doc_id]
+        if matches.empty:
+            continue
+        row = matches.iloc[0]
+        response_results.append({
+            "rank": rank,
+            "score": float(score),
+            "image_id": str(row.get('IMAGE_ID', '')),
+            "image_file": row.get('IMAGE_FILE', ''),
+            "title": row.get('TITLE', ''),
+            "author": row.get('AUTHOR', ''),
+            "type": row.get('TYPE', ''),
+            "technique": row.get('TECHNIQUE', ''),
+            "description": row.get('DESCRIPTION', ''),
+            "image_url": f"/images/{row.get('IMAGE_FILE', '')}"
+        })
+
+    response = {
+        "query": query,
+        "returned": len(response_results),
+        "results": response_results
+    }
+
+    return JSONResponse(content=response)
