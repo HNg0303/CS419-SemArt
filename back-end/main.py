@@ -9,7 +9,7 @@ import pickle
 import faiss
 from PIL import Image
 from image_retrieval import search_similar_images, load_embeddings
-from text_retrieval import BM25Retriever, preprocess_text, build_inverted_index
+from text_retrieval import BM25Retriever, preprocess_text, build_inverted_index, load_inverted_index_from_csv
 
 app = FastAPI()
 
@@ -31,6 +31,19 @@ app.mount("/images", StaticFiles(directory=IMAGE_FOLDER), name="images")
 # Load CSV once at startup
 df = pd.read_csv(CSV_FILE)
 df['COMBINED_TEXT'] = df['TITLE'] + " " + df['TECHNIQUE'] + " " + df['DESCRIPTION']
+
+# Try to load precomputed inverted index and document term counts for faster retrieval
+INV_CSV = "Dataset/inverted_index.csv"
+DOCCOUNT_CSV = "Dataset/document_term_count.csv"
+if os.path.exists(INV_CSV) and os.path.exists(DOCCOUNT_CSV):
+    try:
+        inverted_index, document_term_count = load_inverted_index_from_csv(INV_CSV, DOCCOUNT_CSV)
+        print(f"Loaded precomputed inverted index ({len(inverted_index)} terms) and document_term_count ({len(document_term_count)} docs)")
+    except Exception as e:
+        print(f"Error loading precomputed index: {e}. Falling back to building index at request time.")
+        inverted_index, document_term_count = build_inverted_index(df)
+else:
+    inverted_index, document_term_count = build_inverted_index(df)
 
 # Load embeddings and build FAISS index
 embeddings_filename = "all_images_embedding.pkl"
@@ -84,9 +97,7 @@ async def retrieve_image(file: UploadFile = File(...)):
 
 @app.get("/api/search/")
 def search_text(query: str = Query(...)):
-    # Build inverted index and document term count
-    inverted_index, document_term_count = build_inverted_index(df)
-
+    # Use precomputed inverted_index and document_term_count loaded at startup
     # Initialize BM25 retriever and fetch results
     bm25 = BM25Retriever()
     avdl = bm25.average_length_of_docs(df['COMBINED_TEXT'])  # Average document length in the corpus
