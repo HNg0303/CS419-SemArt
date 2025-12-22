@@ -148,6 +148,7 @@ export default function App() {
 
   const clearUploadedImage = () => {
     setUploadedImage(null);
+    setIsSearching(false);
     setInputQuery("");
     setSubmittedQuery("");
     setSearchResults(artDatabase);
