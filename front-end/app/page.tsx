@@ -29,47 +29,63 @@ export default function App() {
   const limit = 100;
   const [totalArtworks, setTotalArtworks] = useState(0);
 
+  // Update isSearching based on query or image
+  useEffect(() => {
+    setIsSearching(!!submittedQuery.trim() || !!uploadedImage);
+  }, [submittedQuery, uploadedImage]);
+
   const submitSearch = (q: string) => {
     setSubmittedQuery(q.trim().toLowerCase());
   };
 
   const fetchImages = async () => {
-    const res = await fetch(
-      `http://localhost:8000/api/images/?offset=${offset}&limit=${limit}`,
-    );
-    const data = await res.json();
-    const artworks = data.images.map((item: any) => ({
-      id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
-      url: `http://localhost:8000${item.IMAGE_URL}`,
-      title: item.TITLE || "",
-      artist: item.AUTHOR || "",
-      style: item.TYPE || "",
-      tags: [],
-    }));
-    setArtDatabase((prev) => [...prev, ...artworks]);
-    setOffset((prev) => prev + limit);
-    if (artDatabase.length + artworks.length >= data.scrolled)
-      setHasMore(false);
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/images/?offset=${offset}&limit=${limit}`,
+      );
+      const data = await res.json();
+      const artworks = data.images.map((item: any) => ({
+        id: `${item.IMAGE_ID}_${item.IMAGE_FILE}`,
+        url: `http://localhost:8000${item.IMAGE_URL}`,
+        title: item.TITLE || "",
+        artist: item.AUTHOR || "",
+        style: item.TYPE || "",
+        tags: [],
+      }));
+      setArtDatabase((prev) => [...prev, ...artworks]);
+      setOffset((prev) => prev + limit);
+      if (artDatabase.length + artworks.length >= data.scrolled)
+        setHasMore(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchMoreImages = async () => {
     if (submittedQuery.trim() || uploadedImage) return;
     if (!hasMore) return;
 
-    const data = await getImagesPage(offset, limit);
-    setTotalArtworks(data.total ?? data.scrolled);
+    setIsLoading(true);
+    try {
+      const data = await getImagesPage(offset, limit);
+      setTotalArtworks(data.total ?? data.scrolled);
 
-    const artworks = data.images.map(mapBackendImageToArtImage);
+      const artworks = data.images.map(mapBackendImageToArtImage);
 
-    setArtDatabase((prev) => {
-      const next = [...prev, ...artworks];
-      if (next.length >= (data.scrolled ?? data.total)) setHasMore(false);
-      return next;
-    });
+      setArtDatabase((prev) => {
+        const next = [...prev, ...artworks];
+        if (next.length >= (data.scrolled ?? data.total)) setHasMore(false);
+        return next;
+      });
 
-    setSearchResults((prev) => [...prev, ...artworks]);
-    setOffset((prev) => prev + limit);
+      setSearchResults((prev) => [...prev, ...artworks]);
+      setOffset((prev) => prev + limit);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
   useEffect(() => {
     fetchMoreImages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,12 +105,11 @@ export default function App() {
     const q = submittedQuery.trim();
 
     if (!q) {
-      setIsSearching(false);
       setSearchResults(artDatabase);
       return;
     }
 
-    setIsSearching(true);
+    setIsLoading(true);
     (async () => {
       try {
         const data = await searchByText(q);
@@ -103,7 +118,7 @@ export default function App() {
       } catch {
         setSearchResults(artDatabase);
       } finally {
-        setIsSearching(false);
+        setIsLoading(false);
       }
     })();
   }, [submittedQuery, artDatabase]);
@@ -116,7 +131,6 @@ export default function App() {
     if (!file) return;
 
     setIsLoading(true);
-    setIsSearching(true);
     setUploadedImage(URL.createObjectURL(file));
 
     // Prepare form data
@@ -148,7 +162,6 @@ export default function App() {
 
   const clearUploadedImage = () => {
     setUploadedImage(null);
-    setIsSearching(false);
     setInputQuery("");
     setSubmittedQuery("");
     setSearchResults(artDatabase);
